@@ -13,12 +13,17 @@ const execCmd = (cmd: string, args: string[] = []) =>
     new Promise((resolve, reject) => {
         const app = spawn(cmd, args, {stdio: 'pipe'});
         let stdout = '';
+        let stderr = '';
         app.stdout.on('data', data => {
-            stdout = data;
+            stdout += data;
+        });
+        app.stderr.on('data', data => {
+            stderr += data;
         });
         app.on('close', code => {
-            if (code !== 0 && !stdout.includes('nothing to commit')) {
-                const err = new Error(`${cmd} ${args} \n ${stdout} \n Invalid status code: ${code}`);
+            const output = stdout + stderr;
+            if (code !== 0 && !output.includes('nothing to commit')) {
+                const err = new Error(`${cmd} ${args.join(' ')} \n ${output} \n Invalid status code: ${code}`);
                 return reject(err);
             }
             return resolve(code);
@@ -113,6 +118,7 @@ const action = async () => {
                 retry += 1;
                 try {
                     await commitFile();
+                    break;
                 } catch (error) {
                     if (retry == maxRetry) {
                         throw error;
